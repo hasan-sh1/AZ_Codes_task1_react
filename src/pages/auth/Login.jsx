@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, Alert, Row, Col } from "react-bootstrap";
+import { Button, Alert, Row, Col, Form } from "react-bootstrap";
 import { useTranslation } from "react-i18next";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -9,7 +9,7 @@ import classNames from "classnames";
 import axios from "axios";
 
 // components
-import { VerticalForm, FormInput } from "@/components";
+import { VerticalForm } from "@/components";
 import AuthLayout from "./AuthLayout";
 
 /* bottom links */
@@ -102,36 +102,51 @@ const Login = () => {
     setErrorMessage(null);
 
     try {
+      // Use environment variable if available, fallback to localhost
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      
       // إرسال بيانات تسجيل الدخول مباشرة إلى API
-      const response = await axios.post('http://127.0.0.1:8000/api/login', {
+      const response = await axios.post(`${apiUrl}/api/login`, {
         email: formData.email,
         password: formData.password,
       }, {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-        }
+        },
+        // Add timeout to prevent hanging requests
+        timeout: 10000,
       });
       
       console.log("Login response:", response.data);
       
-      // حفظ بيانات المستخدم وتوكن المصادقة في localStorage
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      
-      // التوجيه إلى الصفحة الرئيسية بعد تسجيل الدخول
-      navigate('/');
+      // Save the authentication token and user data in localStorage
+      localStorage.setItem('authToken', response.data.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.data.user));
+      // console.log(response.data.tokin);
+      // التوجيه إلى الصفحة الرئيسية بعد تسجيل الدخول مع تحديث الصفحة
+      window.location.href = '/dashboard';
       
     } catch (error) {
       console.error("Login error:", error);
       
-      // التعامل مع أخطاء تسجيل الدخول
-      if (error.response) {
-        setErrorMessage(error.response.data.message || "فشل تسجيل الدخول. تأكد من بيانات الاعتماد الخاصة بك.");
+      // More detailed error handling
+      if (error.code === 'ECONNABORTED') {
+        setErrorMessage("انتهت مهلة الاتصال بالخادم. تأكد من أن الخادم يعمل.");
+      } else if (error.response) {
+        console.log("Error status:", error.response.status);
+        console.log("Error data:", error.response.data);
+        
+        if (error.response.data.errors) {
+          const allErrors = Object.values(error.response.data.errors).flat().join(", ");
+          setErrorMessage(allErrors);
+        } else {
+          setErrorMessage(error.response.data.message || "فشل تسجيل الدخول. تأكد من بيانات الاعتماد الخاصة بك.");
+        }
       } else if (error.request) {
-        setErrorMessage("لم يتم تلقي استجابة من الخادم. تأكد من تشغيل الخادم.");
+        setErrorMessage("لم يتم تلقي استجابة من الخادم. تأكد من تشغيل الخادم على العنوان http://localhost:8000");
       } else {
-        setErrorMessage("حدث خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.");
+        setErrorMessage(`حدث خطأ أثناء الاتصال بالخادم: ${error.message}`);
       }
     } finally {
       setLoading(false);
@@ -146,25 +161,38 @@ const Login = () => {
       >
         {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
 
-        <VerticalForm onSubmit={handleSubmit(onSubmit)}>
-          <FormInput
-            label={t("Email address")}
-            type="email"
-            name="email"
-            placeholder={t("Enter your email")}
-            containerClass={"mb-3"}
-            {...register("email")}
-            errors={errors}
-          />
-          <FormInput
-            label={t("Password")}
-            type="password"
-            name="password"
-            placeholder={t("Enter your password")}
-            containerClass={"mb-3"}
-            {...register("password")}
-            errors={errors}
-          />
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Form.Group className="mb-3">
+            <Form.Label>{t("Email address")}</Form.Label>
+            <Form.Control
+              type="email"
+              name="email"
+              placeholder={t("Enter your email")}
+              isInvalid={!!errors.email}
+              {...register("email")}
+            />
+            {errors.email && (
+              <Form.Control.Feedback type="invalid">
+                {errors.email.message}
+              </Form.Control.Feedback>
+            )}
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>{t("Password")}</Form.Label>
+            <Form.Control
+              type="password"
+              name="password"
+              placeholder={t("Enter your password")}
+              isInvalid={!!errors.password}
+              {...register("password")}
+            />
+            {errors.password && (
+              <Form.Control.Feedback type="invalid">
+                {errors.password.message}
+              </Form.Control.Feedback>
+            )}
+          </Form.Group>
 
           <div className="text-center d-grid">
             <Button variant="primary" type="submit" disabled={loading}>
@@ -178,7 +206,7 @@ const Login = () => {
               )}
             </Button>
           </div>
-        </VerticalForm>
+        </form>
 
         <div className="text-center">
           <h5 className="mt-3 text-muted">{t("Sign in with")}</h5>

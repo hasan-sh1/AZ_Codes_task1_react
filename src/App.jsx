@@ -4,17 +4,18 @@ import "jsvectormap/dist/jsvectormap.min.css";
 import "react-datepicker/dist/react-datepicker.min.css";
 import '@/assets/scss/Default.scss';
 import "@/assets/scss/Icons.scss";
-import configureFakeBackend from "@/helpers/fake-backend.js";
-import AllRoutes from "@/routes/Routes.jsx";
-import AppProvidersWrapper from "@/components/AppProvidersWrapper.jsx";
-configureFakeBackend();
-function App() {
-  return <>
-            <Fragment>
-                <AppProvidersWrapper>
-                    <AllRoutes />
-                </AppProvidersWrapper>
-            </Fragment>
-        </>;
-}
+import { BrowserRouter } from 'react-router-dom';
+import AppProvidersWrapper from './components/AppProvidersWrapper';
+import AllRoutes from './routes/Routes';
+
+const App = () => {
+  return (
+    <BrowserRouter>
+      <AppProvidersWrapper>
+        <AllRoutes />
+      </AppProvidersWrapper>
+    </BrowserRouter>
+  );
+};
+
 export default App;
